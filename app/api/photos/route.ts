@@ -1,11 +1,18 @@
 import { createClient } from "@supabase/supabase-js";
+import { makePhotoFilename } from "../../lib/photo-filename";
 
 export const runtime = "nodejs";
 
 const BUCKET = "zest-student-photos";
 const MAX_FILE_SIZE = 12 * 1024 * 1024;
 const VALID_LEVELS = new Set(["K1", "K2", "P1", "P2", "P3", "P4", "P5", "P6"]);
-const VALID_CLASSES = new Set(["A", "B"]);
+const VALID_CLASS_DISTRICTS = new Map([
+  ["a", "A"],
+  ["b", "B"],
+  ["tampines", "Tampines"],
+  ["jurong", "Jurong"],
+  ["aljunied", "Aljunied"],
+]);
 
 export async function POST(request: Request) {
   try {
@@ -28,7 +35,9 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const photo = form.get("photo");
     const name = cleanText(form.get("name"));
-    const classGroup = cleanText(form.get("classGroup")).toUpperCase();
+    const classGroup = VALID_CLASS_DISTRICTS.get(
+      cleanText(form.get("classGroup")).toLowerCase(),
+    );
     const level = cleanText(form.get("level")).toUpperCase();
 
     if (!(photo instanceof File) || photo.type !== "image/jpeg") {
@@ -40,18 +49,15 @@ export async function POST(request: Request) {
     if (name.length < 1 || name.length > 80) {
       return Response.json({ error: "Enter a valid student name." }, { status: 400 });
     }
-    if (!VALID_CLASSES.has(classGroup) || !VALID_LEVELS.has(level)) {
-      return Response.json({ error: "Choose a valid class and level." }, { status: 400 });
+    if (!classGroup || !VALID_LEVELS.has(level)) {
+      return Response.json(
+        { error: "Choose a valid class / district and level." },
+        { status: 400 },
+      );
     }
 
-    const safeName = name
-      .normalize("NFKC")
-      .replace(/[\\/]+/g, "-")
-      .replace(/[<>:\"|?*\u0000-\u001F\u007F]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 80) || "Student";
-    const path = `${level}/class-${classGroup}/${safeName}-${level.toLowerCase()}-class ${classGroup}.jpg`;
+    const filename = makePhotoFilename(name, level, classGroup);
+    const path = `${level}/class-${classGroup}/${filename}`;
 
     const supabase = createClient(supabaseUrl, secretKey, {
       auth: { persistSession: false, autoRefreshToken: false },

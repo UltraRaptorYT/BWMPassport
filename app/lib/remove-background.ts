@@ -6,21 +6,30 @@ const ANALYSIS_WIDTH = 1000;
 const ANALYSIS_HEIGHT = 1285;
 
 const DESKTOP_CONFIG = {
-  device: "cpu",
+  device: "gpu",
   model: "isnet_fp16",
   rescale: true,
   output: { format: "image/png", quality: 1 },
 } satisfies Config;
 
-const MOBILE_CONFIG = {
+const DESKTOP_CPU_CONFIG = {
+  ...DESKTOP_CONFIG,
   device: "cpu",
+} satisfies Config;
+
+const MOBILE_CONFIG = {
+  device: "gpu",
   model: "isnet_quint8",
   rescale: true,
   output: { format: "image/png", quality: 1 },
 } satisfies Config;
 
+const MOBILE_CPU_CONFIG = {
+  ...MOBILE_CONFIG,
+  device: "cpu",
+} satisfies Config;
+
 const preloadPromises = new Map<string, Promise<void>>();
-let mobileRuntimeConfigured = false;
 
 function isMobileDevice() {
   if (typeof navigator === "undefined") return false;
@@ -30,21 +39,12 @@ function isMobileDevice() {
   );
 }
 
-async function configureMobileRuntime() {
-  if (!isMobileDevice() || mobileRuntimeConfigured) return;
-  const { env } = await import("onnxruntime-web");
-  env.wasm.numThreads = 1;
-  env.wasm.proxy = false;
-  mobileRuntimeConfigured = true;
-}
-
 function preloadConfig(config: Config) {
-  const key = config.model ?? "default";
+  const key = `${config.device ?? "cpu"}:${config.model ?? "default"}`;
   const existing = preloadPromises.get(key);
   if (existing) return existing;
 
-  const promise = configureMobileRuntime()
-    .then(() => import("@imgly/background-removal"))
+  const promise = import("@imgly/background-removal")
     .then(({ preload }) => preload(config))
     .catch((error: unknown) => {
       preloadPromises.delete(key);
@@ -54,24 +54,41 @@ function preloadConfig(config: Config) {
   return promise;
 }
 
-export function preloadBackgroundRemoval() {
-  return preloadConfig(isMobileDevice() ? MOBILE_CONFIG : DESKTOP_CONFIG);
+export async function preloadBackgroundRemoval() {
+  const configs = isMobileDevice()
+    ? [MOBILE_CONFIG, MOBILE_CPU_CONFIG]
+    : [DESKTOP_CONFIG, DESKTOP_CPU_CONFIG, MOBILE_CPU_CONFIG];
+  let lastError: unknown;
+
+  for (const config of configs) {
+    try {
+      await preloadConfig(config);
+      return;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? new Error("The background-removal model could not load.");
 }
 
 export async function removePhotoBackground(photo: Blob) {
   const analysisPhoto = await createAnalysisPhoto(photo);
-  const preferredConfig = isMobileDevice() ? MOBILE_CONFIG : DESKTOP_CONFIG;
-  let foreground: Blob;
+  const configs = isMobileDevice()
+    ? [MOBILE_CONFIG, MOBILE_CPU_CONFIG]
+    : [DESKTOP_CONFIG, DESKTOP_CPU_CONFIG, MOBILE_CPU_CONFIG];
+  let lastError: unknown;
 
-  try {
-    foreground = await removeWithConfig(analysisPhoto, preferredConfig);
-  } catch (error) {
-    if (preferredConfig.model === MOBILE_CONFIG.model) throw error;
-    // Desktop browsers also fall back to the lower-memory model if needed.
-    foreground = await removeWithConfig(analysisPhoto, MOBILE_CONFIG);
+  for (const config of configs) {
+    try {
+      const foreground = await removeWithConfig(analysisPhoto, config);
+      return compositeOriginalWithMask(photo, foreground);
+    } catch (error) {
+      lastError = error;
+    }
   }
 
-  return compositeOriginalWithMask(photo, foreground);
+  throw lastError ?? new Error("The photo background could not be removed.");
 }
 
 async function removeWithConfig(photo: Blob, config: Config) {

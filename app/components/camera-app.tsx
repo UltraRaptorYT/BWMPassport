@@ -13,11 +13,16 @@ import {
   preloadBackgroundRemoval,
   removePhotoBackground,
 } from "../lib/remove-background";
+import { makePhotoFilename } from "../lib/photo-filename";
 
 const OUTPUT_WIDTH = 2000;
 const OUTPUT_HEIGHT = 2570;
 const LEVELS = ["K1", "K2", "P1", "P2", "P3", "P4", "P5", "P6"] as const;
+const CLASS_DISTRICTS = ["A", "B", "Tampines", "Jurong", "Aljunied"] as const;
+const CLASS_STORAGE_KEY = "bwm-passport:class";
+const LEVEL_STORAGE_KEY = "bwm-passport:level";
 type Level = (typeof LEVELS)[number];
+type ClassDistrict = (typeof CLASS_DISTRICTS)[number];
 type Step = "camera" | "crop" | "processing" | "details" | "success";
 type ImageSize = { width: number; height: number };
 type StillImageCapture = { takePhoto: () => Promise<Blob> };
@@ -42,7 +47,7 @@ export default function CameraApp() {
   const [processingPreviewUrl, setProcessingPreviewUrl] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [name, setName] = useState("");
-  const [classGroup, setClassGroup] = useState<"A" | "B">("A");
+  const [classGroup, setClassGroup] = useState<ClassDistrict>("A");
   const [level, setLevel] = useState<Level>("K1");
   const [uploading, setUploading] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -54,6 +59,7 @@ export default function CameraApp() {
   const imageRef = useRef<HTMLImageElement>(null);
   const dragRef = useRef({ active: false, x: 0, y: 0 });
   const processingIdRef = useRef(0);
+  const preferencesLoadedRef = useRef(false);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -105,6 +111,39 @@ export default function CameraApp() {
       // The processing screen will show a retry option if preloading failed.
     });
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const savedClass = window.localStorage.getItem(CLASS_STORAGE_KEY);
+        const savedLevel = window.localStorage.getItem(LEVEL_STORAGE_KEY);
+
+        if (CLASS_DISTRICTS.includes(savedClass as ClassDistrict)) {
+          setClassGroup(savedClass as ClassDistrict);
+        }
+        if (LEVELS.includes(savedLevel as Level)) {
+          setLevel(savedLevel as Level);
+        }
+      } catch {
+        // Continue with the defaults when browser storage is unavailable.
+      } finally {
+        preferencesLoadedRef.current = true;
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!preferencesLoadedRef.current) return;
+
+    try {
+      window.localStorage.setItem(CLASS_STORAGE_KEY, classGroup);
+      window.localStorage.setItem(LEVEL_STORAGE_KEY, level);
+    } catch {
+      // The current selections still work when browser storage is unavailable.
+    }
+  }, [classGroup, level]);
 
   useEffect(() => {
     return () => {
@@ -378,12 +417,15 @@ export default function CameraApp() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!photo || !name.trim()) return;
+    const studentName = name.trim();
+    const filename = makePhotoFilename(studentName, level, classGroup);
+    savePhotoToDevice(photo, filename);
     setUploading(true);
     setSubmitError("");
     try {
       const body = new FormData();
-      body.append("photo", photo, "passport-photo.jpg");
-      body.append("name", name.trim());
+      body.append("photo", photo, filename);
+      body.append("name", studentName);
       body.append("classGroup", classGroup);
       body.append("level", level);
       const response = await fetch("/api/photos", { method: "POST", body });
@@ -621,15 +663,16 @@ export default function CameraApp() {
             />
           </label>
           <label>
-            Class
+            Class / District
             <select
               value={classGroup}
               onChange={(event) =>
-                setClassGroup(event.target.value as "A" | "B")
+                setClassGroup(event.target.value as ClassDistrict)
               }
             >
-              <option value="A">A</option>
-              <option value="B">B</option>
+              {CLASS_DISTRICTS.map((item) => (
+                <option key={item}>{item}</option>
+              ))}
             </select>
           </label>
           <label>
@@ -670,8 +713,6 @@ export default function CameraApp() {
         className="primary"
         onClick={() => {
           setName("");
-          setClassGroup("A");
-          setLevel("K1");
           reset();
         }}
       >
@@ -707,4 +748,16 @@ function makeOutputCanvas() {
     context.imageSmoothingQuality = "high";
   }
   return canvas;
+}
+
+function savePhotoToDevice(photo: Blob, filename: string) {
+  const url = URL.createObjectURL(photo);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.hidden = true;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
