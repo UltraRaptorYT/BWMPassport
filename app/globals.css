@@ -36,17 +36,6 @@ button:disabled {
   clip: rect(0 0 0 0);
 }
 
-.camera-page {
-  min-height: 100svh;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 22px;
-  background: #0a0a0a;
-}
-
 .camera-view,
 .crop-view {
   position: relative;
@@ -75,6 +64,7 @@ button:disabled {
   font-size: 11px;
   transform: translateX(-50%);
   white-space: nowrap;
+  z-index: 3;
 }
 
 .camera-empty {
@@ -96,13 +86,6 @@ button:disabled {
   border: 0;
   background: transparent;
   text-decoration: underline;
-}
-
-.camera-controls {
-  width: min(100%, 510px);
-  display: grid;
-  grid-template-columns: 1fr 80px 1fr;
-  align-items: center;
 }
 
 .plain-action {
@@ -158,18 +141,6 @@ button:disabled {
   background: white;
 }
 
-.simple-page {
-  min-height: 100svh;
-  padding: 28px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  color: #f4f4f4;
-  background: #0a0a0a;
-}
-
 .crop-view {
   width: min(100%, 430px);
   cursor: grab;
@@ -197,12 +168,6 @@ button:disabled {
   accent-color: #fff;
 }
 
-.row-actions {
-  width: min(100%, 430px);
-  display: flex;
-  gap: 10px;
-}
-
 .row-actions button,
 .success-page button {
   min-height: 46px;
@@ -219,25 +184,6 @@ button:disabled {
   color: #080808;
   border-color: #fff;
   background: #fff;
-}
-
-.details-page {
-  justify-content: flex-start;
-  overflow: auto;
-}
-
-.photo-result {
-  width: min(46vw, 230px);
-  aspect-ratio: 2000 / 2570;
-  display: block;
-  object-fit: cover;
-  background: #1b1b1b;
-}
-
-.details-page form {
-  width: min(100%, 430px);
-  display: grid;
-  gap: 15px;
 }
 
 .details-page label {
@@ -279,6 +225,33 @@ button:disabled {
   margin: 0;
   color: #ff8f8f;
   font-size: 13px;
+}
+
+.processing-page {
+  text-align: center;
+}
+
+.processing-page > p {
+  margin: 0;
+}
+
+.processing-page > small {
+  color: #999;
+}
+
+.processing-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid #333;
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: processing-spin 0.8s linear infinite;
+}
+
+@keyframes processing-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .success-page p {

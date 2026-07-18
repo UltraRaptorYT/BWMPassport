@@ -67,6 +67,7 @@ export async function POST(request: Request) {
         level,
         physical_ratio: "34x44mm",
         output_size: "2000x2570",
+        background: "white",
       },
     });
 

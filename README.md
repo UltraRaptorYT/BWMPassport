@@ -6,6 +6,8 @@ A mobile-friendly camera app for collecting consistent student photos. It can:
 - automatically capture camera photos in the required 2000:2570 frame;
 - crop only images selected from the device;
 - export a high-quality 2000 × 2570 JPEG;
+- remove the background in the browser with `@imgly/background-removal` and replace it with passport white;
+- show a head-and-shoulders positioning guide during capture and cropping;
 - collect the student's name, class (A/B), and level (K1–K2, P1–P6);
 - upload securely into a private Supabase Storage bucket.
 
@@ -47,6 +49,9 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). Camera access requires `localhost` or an HTTPS deployment.
+
+Background removal uses IMG.LY's AGPL-licensed browser package. Its model is downloaded and cached by the browser on first use.
+The app begins preloading that model when the camera screen opens, so processing can start sooner after capture.
 
 ## Checks
 

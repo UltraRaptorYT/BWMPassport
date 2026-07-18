@@ -9,12 +9,16 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  preloadBackgroundRemoval,
+  removePhotoBackground,
+} from "../lib/remove-background";
 
 const OUTPUT_WIDTH = 2000;
 const OUTPUT_HEIGHT = 2570;
 const LEVELS = ["K1", "K2", "P1", "P2", "P3", "P4", "P5", "P6"] as const;
 type Level = (typeof LEVELS)[number];
-type Step = "camera" | "crop" | "details" | "success";
+type Step = "camera" | "crop" | "processing" | "details" | "success";
 type ImageSize = { width: number; height: number };
 type StillImageCapture = { takePhoto: () => Promise<Blob> };
 type StillImageCaptureConstructor = new (
@@ -33,6 +37,8 @@ export default function CameraApp() {
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [photo, setPhoto] = useState<Blob | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<Blob | null>(null);
+  const [processingError, setProcessingError] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [name, setName] = useState("");
   const [classGroup, setClassGroup] = useState<"A" | "B">("A");
@@ -46,6 +52,7 @@ export default function CameraApp() {
   const cropRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const dragRef = useRef({ active: false, x: 0, y: 0 });
+  const processingIdRef = useRef(0);
 
   const stopCamera = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -93,6 +100,12 @@ export default function CameraApp() {
   }, [startCamera, stopCamera]);
 
   useEffect(() => {
+    void preloadBackgroundRemoval().catch(() => {
+      // The processing screen will show a retry option if preloading failed.
+    });
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (sourceUrl) URL.revokeObjectURL(sourceUrl);
     };
@@ -117,11 +130,26 @@ export default function CameraApp() {
     return () => observer.disconnect();
   }, [step]);
 
-  function savePhoto(blob: Blob) {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPhoto(blob);
-    setPreviewUrl(URL.createObjectURL(blob));
-    setStep("details");
+  async function savePhoto(blob: Blob) {
+    const processingId = ++processingIdRef.current;
+    setPendingPhoto(blob);
+    setProcessingError("");
+    setStep("processing");
+    try {
+      const cleanedPhoto = await removePhotoBackground(blob);
+      if (processingId !== processingIdRef.current) return;
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPhoto(cleanedPhoto);
+      setPreviewUrl(URL.createObjectURL(cleanedPhoto));
+      setStep("details");
+    } catch (error) {
+      if (processingId !== processingIdRef.current) return;
+      setProcessingError(
+        error instanceof Error
+          ? error.message
+          : "The background could not be removed.",
+      );
+    }
   }
 
   async function capturePhoto() {
@@ -152,7 +180,7 @@ export default function CameraApp() {
           bitmap.close();
           if (captured) {
             stopCamera();
-            savePhoto(captured);
+            void savePhoto(captured);
             return;
           }
         } catch {
@@ -167,7 +195,7 @@ export default function CameraApp() {
       );
       if (captured) {
         stopCamera();
-        savePhoto(captured);
+        void savePhoto(captured);
       }
     } finally {
       setCapturing(false);
@@ -306,12 +334,15 @@ export default function CameraApp() {
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", 0.97),
     );
-    if (blob) savePhoto(blob);
+    if (blob) void savePhoto(blob);
   }
 
   function reset() {
+    processingIdRef.current += 1;
     stopCamera();
     setPhoto(null);
+    setPendingPhoto(null);
+    setProcessingError("");
     setSubmitError("");
     setStep("camera");
     void startCamera();
@@ -352,7 +383,7 @@ export default function CameraApp() {
 
   if (step === "camera") {
     return (
-      <main className="camera-page">
+      <main className="camera-page flex min-h-svh flex-col items-center justify-center gap-[22px] bg-[#0a0a0a] p-5">
         <h1 className="text-white text-xl">BWM Passport</h1>
         <div className="camera-view">
           {cameraOpen ? (
@@ -370,9 +401,10 @@ export default function CameraApp() {
               </button>
             </div>
           )}
+          <PoseGuide />
           <span className="ratio-label">2000 × 2570 px</span>
         </div>
-        <div className="camera-controls">
+        <div className="grid w-full max-w-[510px] grid-cols-[1fr_80px_1fr] items-center">
           <button
             className="gallery-button mx-auto"
             type="button"
@@ -425,7 +457,7 @@ export default function CameraApp() {
 
   if (step === "crop") {
     return (
-      <main className="simple-page">
+      <main className="simple-page flex min-h-svh flex-col items-center justify-center gap-[18px] bg-[#0a0a0a] px-5 py-7 text-[#f4f4f4]">
         <h1 className="text-white text-xl">BWM Passport</h1>
         <div
           className="crop-view"
@@ -454,6 +486,7 @@ export default function CameraApp() {
               })
             }
           />
+          <PoseGuide />
           <span>2000 × 2570 px</span>
         </div>
         <label className="zoom">
@@ -471,7 +504,7 @@ export default function CameraApp() {
             }}
           />
         </label>
-        <div className="row-actions">
+        <div className="row-actions flex w-full max-w-[430px] gap-2.5">
           <button type="button" onClick={reset}>
             Cancel
           </button>
@@ -488,17 +521,47 @@ export default function CameraApp() {
     );
   }
 
+  if (step === "processing") {
+    return (
+      <main className="simple-page processing-page flex min-h-svh flex-col items-center justify-center gap-[18px] bg-[#0a0a0a] px-5 py-7 text-[#f4f4f4]">
+        <h1 className="text-white text-xl">BWM Passport</h1>
+        {processingError ? (
+          <>
+            <p className="form-error" role="alert">{processingError}</p>
+            <div className="row-actions flex w-full max-w-[430px] gap-2.5">
+              <button type="button" onClick={reset}>Retake</button>
+              <button
+                type="button"
+                className="primary"
+                onClick={() => pendingPhoto && void savePhoto(pendingPhoto)}
+                disabled={!pendingPhoto}
+              >
+                Try again
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="processing-spinner" aria-hidden="true" />
+            <p>Removing background…</p>
+            <small>This may take a moment the first time.</small>
+          </>
+        )}
+      </main>
+    );
+  }
+
   if (step === "details") {
     return (
-      <main className="simple-page details-page">
+      <main className="simple-page details-page flex min-h-svh flex-col items-center justify-start gap-[18px] overflow-auto bg-[#0a0a0a] px-5 py-7 text-[#f4f4f4]">
         <h1 className="text-white text-xl">BWM Passport</h1>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          className="photo-result"
+          className="block aspect-[2000/2570] w-[min(46vw,230px)] bg-[#1b1b1b] object-cover"
           src={previewUrl}
           alt="Student photo preview"
         />
-        <form onSubmit={submit}>
+        <form className="grid w-full max-w-[430px] gap-[15px]" onSubmit={submit}>
           <label>
             Name
             <input
@@ -537,7 +600,7 @@ export default function CameraApp() {
               {submitError}
             </p>
           )}
-          <div className="row-actions">
+          <div className="row-actions flex w-full max-w-[430px] gap-2.5">
             <button type="button" onClick={reset}>
               Retake
             </button>
@@ -551,7 +614,7 @@ export default function CameraApp() {
   }
 
   return (
-    <main className="simple-page success-page">
+    <main className="simple-page success-page flex min-h-svh flex-col items-center justify-center gap-[18px] bg-[#0a0a0a] px-5 py-7 text-[#f4f4f4]">
       <h1 className="text-white text-xl">BWM Passport</h1>
       <p>Photo uploaded.</p>
       <button
@@ -567,6 +630,12 @@ export default function CameraApp() {
         Take another
       </button>
     </main>
+  );
+}
+
+function PoseGuide() {
+  return (
+    <img src="" alt="Pose guide" />
   );
 }
 
