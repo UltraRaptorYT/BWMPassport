@@ -39,6 +39,7 @@ export default function CameraApp() {
   const [photo, setPhoto] = useState<Blob | null>(null);
   const [pendingPhoto, setPendingPhoto] = useState<Blob | null>(null);
   const [processingError, setProcessingError] = useState("");
+  const [processingPreviewUrl, setProcessingPreviewUrl] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [name, setName] = useState("");
   const [classGroup, setClassGroup] = useState<"A" | "B">("A");
@@ -118,6 +119,12 @@ export default function CameraApp() {
   }, [previewUrl]);
 
   useEffect(() => {
+    return () => {
+      if (processingPreviewUrl) URL.revokeObjectURL(processingPreviewUrl);
+    };
+  }, [processingPreviewUrl]);
+
+  useEffect(() => {
     if (step !== "crop" || !cropRef.current) return;
     const crop = cropRef.current;
     const measure = () => {
@@ -132,6 +139,9 @@ export default function CameraApp() {
 
   async function savePhoto(blob: Blob) {
     const processingId = ++processingIdRef.current;
+    if (processingPreviewUrl) URL.revokeObjectURL(processingPreviewUrl);
+    const processingUrl = URL.createObjectURL(blob);
+    setProcessingPreviewUrl(processingUrl);
     setPendingPhoto(blob);
     setProcessingError("");
     setStep("processing");
@@ -141,6 +151,10 @@ export default function CameraApp() {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPhoto(cleanedPhoto);
       setPreviewUrl(URL.createObjectURL(cleanedPhoto));
+      URL.revokeObjectURL(processingUrl);
+      setProcessingPreviewUrl((current) =>
+        current === processingUrl ? "" : current,
+      );
       setStep("details");
     } catch (error) {
       if (processingId !== processingIdRef.current) return;
@@ -162,6 +176,8 @@ export default function CameraApp() {
     setCapturing(true);
     try {
       const track = streamRef.current?.getVideoTracks()[0];
+      const mirrorPhoto =
+        (track?.getSettings().facingMode ?? facingMode) === "user";
       const ImageCaptureApi = (
         window as typeof window & {
           ImageCapture?: StillImageCaptureConstructor;
@@ -176,6 +192,7 @@ export default function CameraApp() {
             bitmap,
             bitmap.width,
             bitmap.height,
+            mirrorPhoto,
           );
           bitmap.close();
           if (captured) {
@@ -192,6 +209,7 @@ export default function CameraApp() {
         video,
         video.videoWidth,
         video.videoHeight,
+        mirrorPhoto,
       );
       if (captured) {
         stopCamera();
@@ -206,6 +224,7 @@ export default function CameraApp() {
     source: CanvasImageSource,
     inputWidth: number,
     inputHeight: number,
+    mirrorHorizontal = false,
   ) {
     const sourceRatio = inputWidth / inputHeight;
     const targetRatio = OUTPUT_WIDTH / OUTPUT_HEIGHT;
@@ -226,6 +245,11 @@ export default function CameraApp() {
     const canvas = makeOutputCanvas();
     const context = canvas.getContext("2d");
     if (!context) return null;
+    context.save();
+    if (mirrorHorizontal) {
+      context.translate(OUTPUT_WIDTH, 0);
+      context.scale(-1, 1);
+    }
     context.drawImage(
       source,
       sourceX,
@@ -237,6 +261,7 @@ export default function CameraApp() {
       OUTPUT_WIDTH,
       OUTPUT_HEIGHT,
     );
+    context.restore();
     return new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", 0.97),
     );
@@ -343,6 +368,8 @@ export default function CameraApp() {
     setPhoto(null);
     setPendingPhoto(null);
     setProcessingError("");
+    if (processingPreviewUrl) URL.revokeObjectURL(processingPreviewUrl);
+    setProcessingPreviewUrl("");
     setSubmitError("");
     setStep("camera");
     void startCamera();
@@ -392,6 +419,7 @@ export default function CameraApp() {
               playsInline
               muted
               aria-label="Camera preview"
+              className={facingMode === "user" ? "-scale-x-100" : undefined}
             />
           ) : (
             <div className="camera-empty">
@@ -525,6 +553,23 @@ export default function CameraApp() {
     return (
       <main className="simple-page processing-page flex min-h-svh flex-col items-center justify-center gap-[18px] bg-[#0a0a0a] px-5 py-7 text-[#f4f4f4]">
         <h1 className="text-white text-xl">BWM Passport</h1>
+        {processingPreviewUrl && (
+          <div className="relative aspect-[2000/2570] w-[min(70vw,300px)] overflow-hidden rounded-lg bg-[#1b1b1b]">
+            {/* Local object URL needs the browser's native image decoder. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className="h-full w-full scale-105 object-cover opacity-60 blur-xs"
+              src={processingPreviewUrl}
+              alt="Photo being processed"
+            />
+            {!processingError && (
+              <div className="absolute inset-0 grid place-content-center justify-items-center gap-3 bg-black/20 px-4 text-center">
+                <span className="processing-spinner" aria-hidden="true" />
+                <p className="font-medium">Processing image…</p>
+              </div>
+            )}
+          </div>
+        )}
         {processingError ? (
           <>
             <p className="form-error" role="alert">
@@ -545,11 +590,7 @@ export default function CameraApp() {
             </div>
           </>
         ) : (
-          <>
-            <span className="processing-spinner" aria-hidden="true" />
-            <p>Removing background…</p>
-            <small>This may take a moment the first time.</small>
-          </>
+          <small>This may take a moment the first time.</small>
         )}
       </main>
     );
