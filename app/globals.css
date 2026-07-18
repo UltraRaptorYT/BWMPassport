@@ -1,0 +1,265 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #0a0a0a;
+  color: #f4f4f4;
+  color-scheme: dark;
+  font-family: var(--font-body), Arial, sans-serif;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.hidden-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.camera-page {
+  min-height: 100svh;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  background: #0a0a0a;
+}
+
+.camera-view,
+.crop-view {
+  position: relative;
+  width: min(100%, 51.5svh, 510px);
+  aspect-ratio: 2000 / 2570;
+  overflow: hidden;
+  background: #1b1b1b;
+}
+
+.camera-view video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.ratio-label,
+.crop-view > span {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  padding: 5px 9px;
+  color: white;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.58);
+  font-size: 11px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.camera-empty {
+  width: 100%;
+  height: 100%;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ddd;
+  text-align: center;
+}
+
+.camera-empty button,
+.plain-action {
+  padding: 10px 12px;
+  color: white;
+  border: 0;
+  background: transparent;
+  text-decoration: underline;
+}
+
+.camera-controls {
+  width: min(100%, 510px);
+  display: grid;
+  grid-template-columns: 1fr 80px 1fr;
+  align-items: center;
+}
+
+.plain-action {
+  justify-self: start;
+  font-size: 13px;
+}
+
+.capture-button {
+  width: 72px;
+  height: 72px;
+  padding: 5px;
+  border: 3px solid white;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.capture-button span {
+  width: 56px;
+  height: 56px;
+  display: block;
+  border-radius: 50%;
+  background: white;
+}
+
+.simple-page {
+  min-height: 100svh;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: #f4f4f4;
+  background: #0a0a0a;
+}
+
+.crop-view {
+  width: min(100%, 430px);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.crop-view > img {
+  position: absolute;
+  max-width: none;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.zoom {
+  width: min(100%, 430px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.zoom input {
+  width: 100%;
+  accent-color: #fff;
+}
+
+.row-actions {
+  width: min(100%, 430px);
+  display: flex;
+  gap: 10px;
+}
+
+.row-actions button,
+.success-page button {
+  min-height: 46px;
+  flex: 1;
+  padding: 0 18px;
+  color: #f4f4f4;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  background: #171717;
+}
+
+.row-actions .primary,
+.success-page .primary {
+  color: #080808;
+  border-color: #fff;
+  background: #fff;
+}
+
+.details-page {
+  justify-content: flex-start;
+  overflow: auto;
+}
+
+.photo-result {
+  width: min(46vw, 230px);
+  aspect-ratio: 2000 / 2570;
+  display: block;
+  object-fit: cover;
+  background: #1b1b1b;
+}
+
+.details-page form {
+  width: min(100%, 430px);
+  display: grid;
+  gap: 15px;
+}
+
+.details-page label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.details-page input,
+.details-page select {
+  width: 100%;
+  height: 46px;
+  padding: 0 11px;
+  color: #f4f4f4;
+  border: 1px solid #3a3a3a;
+  border-radius: 5px;
+  background: #151515;
+  font-size: 16px;
+}
+
+.details-page input:focus,
+.details-page select:focus,
+.row-actions button:focus-visible,
+.success-page button:focus-visible,
+.plain-action:focus-visible,
+.capture-button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.details-page .row-actions {
+  margin-top: 6px;
+}
+
+.form-error {
+  margin: 0;
+  color: #ff8f8f;
+  font-size: 13px;
+}
+
+.success-page p {
+  font-size: 20px;
+}
+.success-page button {
+  flex: none;
+}
+
+@media (max-height: 700px) {
+  .camera-page {
+    justify-content: flex-start;
+  }
+  .camera-view {
+    width: min(100%, 66svh);
+  }
+}
