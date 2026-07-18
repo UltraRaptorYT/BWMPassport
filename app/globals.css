@@ -110,6 +110,37 @@ button:disabled {
   font-size: 13px;
 }
 
+.gallery-button,
+.switch-button {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  border: 1px solid #3a3a3a;
+  border-radius: 50%;
+  background: #171717;
+}
+
+.gallery-button {
+  justify-self: start;
+}
+
+.switch-button {
+  justify-self: end;
+}
+
+.gallery-button svg,
+.switch-button svg {
+  width: 23px;
+  height: 23px;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .capture-button {
   width: 72px;
   height: 72px;
@@ -233,6 +264,8 @@ button:disabled {
 .row-actions button:focus-visible,
 .success-page button:focus-visible,
 .plain-action:focus-visible,
+.gallery-button:focus-visible,
+.switch-button:focus-visible,
 .capture-button:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 3px;

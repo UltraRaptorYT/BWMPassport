@@ -26,6 +26,7 @@ export default function CameraApp() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [capturing, setCapturing] = useState(false);
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [sourceUrl, setSourceUrl] = useState("");
   const [imageSize, setImageSize] = useState<ImageSize | null>(null);
   const [cropSize, setCropSize] = useState<ImageSize | null>(null);
@@ -63,7 +64,7 @@ export default function CameraApp() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: "user",
+          facingMode: { ideal: facingMode },
           width: { ideal: 4096 },
           height: { ideal: 3072 },
         },
@@ -81,7 +82,7 @@ export default function CameraApp() {
         "Allow camera access, or choose an image from your device.",
       );
     }
-  }, []);
+  }, [facingMode]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void startCamera(), 0);
@@ -226,6 +227,11 @@ export default function CameraApp() {
     setStep("crop");
   }
 
+  function switchCamera() {
+    stopCamera();
+    setFacingMode((current) => (current === "user" ? "environment" : "user"));
+  }
+
   function getScale(nextZoom = zoom) {
     if (!cropSize || !imageSize) return 1;
     return (
@@ -368,11 +374,17 @@ export default function CameraApp() {
         </div>
         <div className="camera-controls">
           <button
-            className="plain-action"
+            className="gallery-button mx-auto"
             type="button"
             onClick={() => fileInputRef.current?.click()}
+            aria-label="Choose an image from your device"
+            title="Choose image"
           >
-            Choose image
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <circle cx="8.5" cy="9" r="1.5" />
+              <path d="m4 17 4.5-4.5 3.5 3.5 2-2 6 5" />
+            </svg>
           </button>
           <button
             className="capture-button"
@@ -383,7 +395,22 @@ export default function CameraApp() {
           >
             <span />
           </button>
-          <span className="control-balance" />
+          <button
+            className="switch-button mx-auto"
+            type="button"
+            onClick={switchCamera}
+            disabled={!cameraOpen}
+            aria-label="Switch between front and rear cameras"
+            title="Switch camera"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M20 7h-3l-1.5-2h-7L7 7H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z" />
+              <path d="M15.5 11a4 4 0 0 0-6.8-1.4L7.5 11" />
+              <path d="m7.5 8.5 0 2.5H10" />
+              <path d="M8.5 15a4 4 0 0 0 6.8 1.4l1.2-1.4" />
+              <path d="m16.5 17.5 0-2.5H14" />
+            </svg>
+          </button>
         </div>
         <input
           ref={fileInputRef}
