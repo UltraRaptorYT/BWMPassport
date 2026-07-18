@@ -527,9 +527,13 @@ export default function CameraApp() {
         <h1 className="text-white text-xl">BWM Passport</h1>
         {processingError ? (
           <>
-            <p className="form-error" role="alert">{processingError}</p>
+            <p className="form-error" role="alert">
+              {processingError}
+            </p>
             <div className="row-actions flex w-full max-w-[430px] gap-2.5">
-              <button type="button" onClick={reset}>Retake</button>
+              <button type="button" onClick={reset}>
+                Retake
+              </button>
               <button
                 type="button"
                 className="primary"
@@ -561,7 +565,10 @@ export default function CameraApp() {
           src={previewUrl}
           alt="Student photo preview"
         />
-        <form className="grid w-full max-w-[430px] gap-[15px]" onSubmit={submit}>
+        <form
+          className="grid w-full max-w-[430px] gap-[15px]"
+          onSubmit={submit}
+        >
           <label>
             Name
             <input
@@ -635,7 +642,17 @@ export default function CameraApp() {
 
 function PoseGuide() {
   return (
-    <img src="" alt="Pose guide" />
+    <svg
+      className="pointer-events-none absolute inset-0 z-10 h-full w-full stroke-white/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)] [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.35]"
+      viewBox="0 0 200 257"
+      fill="none"
+      aria-hidden="true"
+      preserveAspectRatio="none"
+    >
+      <ellipse cx="100" cy="110" rx="70" ry="88" />
+      <path d="M79 194v7c-7 11-20 17-38 23C20 231 7 242 2 257" />
+      <path d="M121 194v7c7 11 20 17 38 23 21 7 34 18 39 33" />
+    </svg>
   );
 }
 

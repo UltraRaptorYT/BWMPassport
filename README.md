@@ -52,6 +52,7 @@ Open [http://localhost:3000](http://localhost:3000). Camera access requires `loc
 
 Background removal uses IMG.LY's AGPL-licensed browser package. Its model is downloaded and cached by the browser on first use.
 The app begins preloading that model when the camera screen opens, so processing can start sooner after capture.
+On mobile, it uses IMG.LY's lower-memory quantized model with a single WASM thread, then applies the resulting mask to the original 2000 × 2570 image.
 
 ## Checks
 
