@@ -1,5 +1,18 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { ImageIcon, SwitchCamera } from "lucide-react";
 import {
   ChangeEvent,
   FormEvent,
@@ -18,7 +31,14 @@ import { makePhotoFilename } from "../lib/photo-filename";
 const OUTPUT_WIDTH = 2000;
 const OUTPUT_HEIGHT = 2570;
 const LEVELS = ["K1", "K2", "P1", "P2", "P3", "P4", "P5", "P6"] as const;
-const CLASS_DISTRICTS = ["A", "B", "Tampines", "Jurong", "Aljunied"] as const;
+const CLASS_DISTRICTS = [
+  "A",
+  "B",
+  "Tampines",
+  "Jurong",
+  "Aljunied AM (10AM-12PM)",
+  "Aljunied PM (3PM-5PM)",
+] as const;
 const CLASS_STORAGE_KEY = "bwm-passport:class";
 const LEVEL_STORAGE_KEY = "bwm-passport:level";
 type Level = (typeof LEVELS)[number];
@@ -49,6 +69,7 @@ export default function CameraApp() {
   const [name, setName] = useState("");
   const [classGroup, setClassGroup] = useState<ClassDistrict>("A");
   const [level, setLevel] = useState<Level>("K1");
+  const [isTeacher, setIsTeacher] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -428,6 +449,7 @@ export default function CameraApp() {
       body.append("name", studentName);
       body.append("classGroup", classGroup);
       body.append("level", level);
+      body.append("isTeacher", String(isTeacher));
       const response = await fetch("/api/photos", { method: "POST", body });
       const result = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(result.error || "Upload failed.");
@@ -466,55 +488,51 @@ export default function CameraApp() {
           ) : (
             <div className="camera-empty">
               <p>{cameraError || "Starting camera…"}</p>
-              <button type="button" onClick={startCamera}>
+              <Button type="button" variant="link" onClick={startCamera}>
                 Start camera
-              </button>
+              </Button>
             </div>
           )}
           <PoseGuide />
           <span className="ratio-label">2000 × 2570 px</span>
         </div>
         <div className="grid w-full max-w-[510px] grid-cols-[1fr_80px_1fr] items-center">
-          <button
+          <Button
             className="gallery-button mx-auto"
+            variant="outline"
+            size="icon"
             type="button"
             onClick={() => fileInputRef.current?.click()}
             aria-label="Choose an image from your device"
             title="Choose image"
           >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="16" rx="2" />
-              <circle cx="8.5" cy="9" r="1.5" />
-              <path d="m4 17 4.5-4.5 3.5 3.5 2-2 6 5" />
-            </svg>
-          </button>
-          <button
+            <ImageIcon aria-hidden="true" />
+          </Button>
+          <Button
             className="capture-button"
+            variant="outline"
+            size="icon"
             type="button"
             onClick={capturePhoto}
             disabled={!cameraOpen || capturing}
             aria-label="Take photo"
           >
             <span />
-          </button>
-          <button
+          </Button>
+          <Button
             className="switch-button mx-auto"
+            variant="outline"
+            size="icon"
             type="button"
             onClick={switchCamera}
             disabled={!cameraOpen}
             aria-label="Switch between front and rear cameras"
             title="Switch camera"
           >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M20 7h-3l-1.5-2h-7L7 7H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z" />
-              <path d="M15.5 11a4 4 0 0 0-6.8-1.4L7.5 11" />
-              <path d="m7.5 8.5 0 2.5H10" />
-              <path d="M8.5 15a4 4 0 0 0 6.8 1.4l1.2-1.4" />
-              <path d="m16.5 17.5 0-2.5H14" />
-            </svg>
-          </button>
+            <SwitchCamera aria-hidden="true" />
+          </Button>
         </div>
-        <input
+        <Input
           ref={fileInputRef}
           className="hidden-input"
           type="file"
@@ -559,33 +577,33 @@ export default function CameraApp() {
           <PoseGuide />
           <span>2000 × 2570 px</span>
         </div>
-        <label className="zoom">
-          Zoom
-          <input
-            type="range"
-            min="1"
-            max="3"
-            step="0.01"
-            value={zoom}
-            onChange={(event) => {
-              const nextZoom = Number(event.target.value);
+        <div className="zoom">
+          <Label htmlFor="zoom-slider">Zoom</Label>
+          <Slider
+            id="zoom-slider"
+            min={1}
+            max={3}
+            step={0.01}
+            value={[zoom]}
+            onValueChange={(values) => {
+              const nextZoom = values[0] ?? 1;
               setZoom(nextZoom);
               setOffset((current) => clampOffset(current, nextZoom));
             }}
           />
-        </label>
+        </div>
         <div className="row-actions flex w-full max-w-[430px] gap-2.5">
-          <button type="button" onClick={reset}>
+          <Button type="button" variant="outline" onClick={reset}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             className="primary"
             onClick={confirmCrop}
             disabled={!imageSize}
           >
             Use image
-          </button>
+          </Button>
         </div>
       </main>
     );
@@ -618,17 +636,17 @@ export default function CameraApp() {
               {processingError}
             </p>
             <div className="row-actions flex w-full max-w-[430px] gap-2.5">
-              <button type="button" onClick={reset}>
+              <Button type="button" variant="outline" onClick={reset}>
                 Retake
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 className="primary"
                 onClick={() => pendingPhoto && void savePhoto(pendingPhoto)}
                 disabled={!pendingPhoto}
               >
                 Try again
-              </button>
+              </Button>
             </div>
           </>
         ) : (
@@ -646,58 +664,94 @@ export default function CameraApp() {
         <img
           className="block aspect-[2000/2570] w-[min(46vw,230px)] bg-[#1b1b1b] object-cover"
           src={previewUrl}
-          alt="Student photo preview"
+          alt="Photo preview"
         />
         <form
           className="grid w-full max-w-[430px] gap-[15px]"
           onSubmit={submit}
         >
-          <label>
-            Name
-            <input
+          <div className="grid gap-1.5">
+            <Label htmlFor="person-name">Name</Label>
+            <Input
+              id="person-name"
+              className="h-11 rounded-md bg-[#151515] px-3 text-base"
               value={name}
               onChange={(event) => setName(event.target.value)}
               maxLength={80}
               required
               autoFocus
             />
-          </label>
-          <label>
-            Class / District
-            <select
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="class-group">Class / District</Label>
+            <Select
               value={classGroup}
-              onChange={(event) =>
-                setClassGroup(event.target.value as ClassDistrict)
-              }
+              onValueChange={(value) => setClassGroup(value as ClassDistrict)}
             >
-              {CLASS_DISTRICTS.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Level
-            <select
+              <SelectTrigger
+                id="class-group"
+                className="h-11 w-full rounded-md bg-[#151515] px-3 text-base"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                {CLASS_DISTRICTS.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="level">Level</Label>
+            <Select
               value={level}
-              onChange={(event) => setLevel(event.target.value as Level)}
+              onValueChange={(value) => setLevel(value as Level)}
             >
-              {LEVELS.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
-          </label>
+              <SelectTrigger
+                id="level"
+                className="h-11 w-full rounded-md bg-[#151515] px-3 text-base"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                {LEVELS.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-md border border-[#3a3a3a] bg-[#151515] px-3 py-2">
+            <Label htmlFor="teacher-status" className="cursor-pointer text-xs">
+              Cadres / Teachers
+            </Label>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#a1a1aa]">
+                {isTeacher ? "Yes" : "No"}
+              </span>
+              <Switch
+                id="teacher-status"
+                checked={isTeacher}
+                onCheckedChange={setIsTeacher}
+                aria-label="Upload to the Cadres and Teachers folder"
+              />
+            </div>
+          </div>
           {submitError && (
             <p className="form-error" role="alert">
               {submitError}
             </p>
           )}
           <div className="row-actions flex w-full max-w-[430px] gap-2.5">
-            <button type="button" onClick={reset}>
+            <Button type="button" variant="outline" onClick={reset}>
               Retake
-            </button>
-            <button type="submit" className="primary" disabled={uploading}>
+            </Button>
+            <Button type="submit" className="primary" disabled={uploading}>
               {uploading ? "Uploading…" : "Upload"}
-            </button>
+            </Button>
           </div>
         </form>
       </main>
@@ -708,16 +762,17 @@ export default function CameraApp() {
     <main className="simple-page success-page flex min-h-svh flex-col items-center justify-center gap-[18px] bg-[#0a0a0a] px-5 py-7 text-[#f4f4f4]">
       <h1 className="text-white text-xl">BWM Passport</h1>
       <p>Photo uploaded.</p>
-      <button
+      <Button
         type="button"
         className="primary"
         onClick={() => {
           setName("");
+          setIsTeacher(false);
           reset();
         }}
       >
         Take another
-      </button>
+      </Button>
     </main>
   );
 }

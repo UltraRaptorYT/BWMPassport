@@ -4,6 +4,7 @@ const OUTPUT_WIDTH = 2000;
 const OUTPUT_HEIGHT = 2570;
 const ANALYSIS_WIDTH = 1000;
 const ANALYSIS_HEIGHT = 1285;
+const OUTPUT_JPEG_QUALITY = 0.97;
 
 const DESKTOP_CONFIG = {
   device: "gpu",
@@ -139,7 +140,7 @@ async function compositeOriginalWithMask(photo: Blob, foreground: Blob) {
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
 
-    return canvasToBlob(canvas, "image/jpeg", 0.97);
+    return canvasToBlob(canvas, "image/jpeg", OUTPUT_JPEG_QUALITY);
   } finally {
     original.close();
     mask.close();

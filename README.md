@@ -8,38 +8,48 @@ A mobile-friendly camera app for collecting consistent student photos. It can:
 - export a high-quality 2000 × 2570 JPEG;
 - remove the background in the browser with `@imgly/background-removal` and replace it with passport white;
 - show a head-and-shoulders positioning guide during capture and cropping;
-- collect the student's name, class (A/B), and level (K1–K2, P1–P6);
-- upload securely into a private Supabase Storage bucket.
+- collect the person's name, class/district, level, and Cadres/Teachers status;
+- upload securely into a private Google Drive folder.
 
-## Supabase setup
+## Google Drive setup
 
-1. Create or choose a Supabase project.
-2. Link this folder and apply the included bucket migration:
+1. Create or choose a Google Cloud project and enable the **Google Drive API**.
+2. Create a private destination folder in Google Drive. Copy the folder ID from its URL:
 
-   ```bash
-   npx supabase login
-   npx supabase link --project-ref YOUR_PROJECT_REF
-   npx supabase db push
+   ```text
+   https://drive.google.com/drive/folders/FOLDER_ID
    ```
 
-3. Copy `.env.example` to `.env.local` and add your project URL and secret key from **Project Settings → API Keys**. Legacy projects can use the service role key instead.
+3. Configure one server-side authentication method:
 
-   The secret/service role key is server-only. Never rename it with a `NEXT_PUBLIC_` prefix or commit `.env.local`.
+   - **Personal Drive or a Workspace user:** create OAuth 2.0 credentials, authorize the `https://www.googleapis.com/auth/drive` scope, and obtain a refresh token.
+   - **Workspace Shared Drive:** create a service account and give it write access to the destination. Service accounts cannot own files, so use a Shared Drive or enable domain-wide delegation and set a user to impersonate.
 
-The migrations create a private `zest-student-photos` bucket that accepts JPEG files up to 12 MB. The browser has no direct bucket access; uploads go through the validated server endpoint.
+   For service-account authentication, set `GOOGLE_SERVICE_EMAIL` to the JSON key's `client_email` value and `GOOGLE_PRIVATE_KEY` to its `private_key` value. Keep the private key server-only. The older `GOOGLE_SERVICE_ACCOUNT_EMAIL` name is also accepted.
 
-Files are named from the submitted student details:
+4. Copy `.env.example` to `.env.local`, set `GOOGLE_DRIVE_FOLDER_ID`, and fill in either the OAuth or service-account variables.
 
-```text
-zest-student-photos/
-  P5/
-    class-A/
-      Person Name-p5-class A.jpg
-```
+All Google credentials are server-only. Never add a `NEXT_PUBLIC_` prefix or commit `.env.local`.
 
-Uploading the same student, level, and class again replaces the existing file.
+The browser has no direct Drive access. JPEG uploads of up to 12 MB go through the validated server endpoint and are routed into the existing Yearbook folder structure. Missing folders are reported as errors instead of being created automatically.
 
-Student name, class, level, and output dimensions are also stored as object metadata.
+Uploads use these destinations:
+
+| Selection | Existing Drive destination |
+| --- | --- |
+| Class A/B | `BW (Woodlands) 吉寺/BW [level band]/Class A` or `Class B` |
+| Tampines | `Tampines 谈宾尼分院/Students` |
+| Jurong | `Tradehub (Jurong) 裕廊分院/Students` |
+| Aljunied AM | `Aljunied 阿裕尼分院/Aljunied AM [level band]/Students` |
+| Aljunied PM | `Aljunied 阿裕尼分院/Aljunied PM K1-P6/Students` |
+
+When **Cadres / Teachers** is enabled, the final student/class folder is replaced by the existing `Cadres/Teachers` folder.
+
+Uploading the same person, level, and class/district again replaces the existing file.
+
+Name, class, level, Cadres/Teachers status, destination path, and output dimensions are also stored in the Drive file description. Searchable non-name fields are stored as private application properties. Cadres/Teachers status defaults to off.
+
+For faster uploads, the server reuses its authenticated Drive client and caches resolved folder/file IDs on warm instances. The final 2000 × 2570 JPEG retains the original high-quality `0.97` setting.
 
 ## Run locally
 
