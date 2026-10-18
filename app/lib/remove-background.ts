@@ -19,15 +19,12 @@ const DESKTOP_CPU_CONFIG = {
 } satisfies Config;
 
 const MOBILE_CONFIG = {
-  device: "gpu",
+  // iOS Safari does not support ONNX Runtime's WebGPU execution provider.
+  // Use WebAssembly directly instead of waiting for a GPU attempt to fail.
+  device: "cpu",
   model: "isnet_quint8",
   rescale: true,
   output: { format: "image/png", quality: 1 },
-} satisfies Config;
-
-const MOBILE_CPU_CONFIG = {
-  ...MOBILE_CONFIG,
-  device: "cpu",
 } satisfies Config;
 
 const preloadPromises = new Map<string, Promise<void>>();
@@ -57,8 +54,8 @@ function preloadConfig(config: Config) {
 
 export async function preloadBackgroundRemoval() {
   const configs = isMobileDevice()
-    ? [MOBILE_CONFIG, MOBILE_CPU_CONFIG]
-    : [DESKTOP_CONFIG, DESKTOP_CPU_CONFIG, MOBILE_CPU_CONFIG];
+    ? [MOBILE_CONFIG]
+    : [DESKTOP_CONFIG, DESKTOP_CPU_CONFIG, MOBILE_CONFIG];
   let lastError: unknown;
 
   for (const config of configs) {
@@ -76,8 +73,8 @@ export async function preloadBackgroundRemoval() {
 export async function removePhotoBackground(photo: Blob) {
   const analysisPhoto = await createAnalysisPhoto(photo);
   const configs = isMobileDevice()
-    ? [MOBILE_CONFIG, MOBILE_CPU_CONFIG]
-    : [DESKTOP_CONFIG, DESKTOP_CPU_CONFIG, MOBILE_CPU_CONFIG];
+    ? [MOBILE_CONFIG]
+    : [DESKTOP_CONFIG, DESKTOP_CPU_CONFIG, MOBILE_CONFIG];
   let lastError: unknown;
 
   for (const config of configs) {
